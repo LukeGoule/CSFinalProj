@@ -4,6 +4,10 @@
 
 #include <iostream>
 
+#ifdef _WIN32
+#pragma warning(disable: 4244)
+#endif
+
 // This "binding" should map one to one with the instruction IDs defined in Mappings.hpp
 BoundInstruction_t InstructionBindings[20] =
 {

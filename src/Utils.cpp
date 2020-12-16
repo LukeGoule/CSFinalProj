@@ -3,6 +3,10 @@
 
 #include <stdexcept>
 
+#ifdef _WIN32
+#pragma warning(disable: 4101 4244)
+#endif
+
 std::vector<std::string> Utils::TokeniseInstruction(std::string Instruction)
 {
     std::vector<std::string> Output;
