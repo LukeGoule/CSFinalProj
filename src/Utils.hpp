@@ -12,6 +12,12 @@ namespace Utils
     bool IsStringEmpty(std::string InputString);
 
     unsigned long InstructionMnemonicToID(std::string Mnemonic);
+    unsigned long long String2Int_SafeFail(std::string IntegerString);
+
+    /* Expects input in form R<number> */
+    unsigned long long ExtractRegisterFromRegisterCode(std::string RegisterCode);
+
+    unsigned long long ExtractDecimalFromOperand2(std::string Operand2);
 }
 
 #endif

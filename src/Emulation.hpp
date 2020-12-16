@@ -2,6 +2,7 @@
 #define EMULATION_HPP
 
 #include <string>
+#include <stdexcept>
 
 /*
 Based heavily off this: https://filestore.aqa.org.uk/resources/computing/AQA-75162-75172-ALI.PDF
@@ -9,6 +10,7 @@ Based heavily off this: https://filestore.aqa.org.uk/resources/computing/AQA-751
 
 #define RETURN_VAL_SIZE     unsigned long long
 #define REGISTER_VAL_SIZE   unsigned long long
+#define MEMORY_SIZE         1024 * 16               // 16 KB
 
 class InstructionReturn
 {
@@ -57,18 +59,72 @@ public:
     RegFunc(10)
     RegFunc(11)
 
+    REGISTER_VAL_SIZE* GetRegisterByNumber(unsigned long long n);
+
+    REGISTER_VAL_SIZE _IP;
+    REGISTER_VAL_SIZE _CF; // Carry Flag, set to 1 when CMP is true.
+};
+
+template<unsigned long long MemSize> class EmulatedMemory
+{
+    
+    uint8_t* m_pRealMemory;   // Memory!! Not a string!
+
+public:
+
+    inline EmulatedMemory()
+        : m_pRealMemory(nullptr)
+    {
+        this->ResetMemory();
+    }
+
+    inline ~EmulatedMemory()
+    {
+
+    }
+
+    inline void ResetMemory()
+    {
+        m_pRealMemory = (uint8_t*)malloc(MemSize);
+    }
+
+    inline bool CheckAddress(std::string OperationName, unsigned long long uAddress)
+    {
+        if (uAddress < 0 || uAddress > MemSize)
+        {
+            throw std::runtime_error{ "[" + OperationName + "] Attempted access outside of useable memory!" };
+        }
+
+        return true;
+    }
+
+    inline uint8_t Read(unsigned long long uAddress)
+    {
+        CheckAddress("Read", uAddress);
+
+        return m_pRealMemory[uAddress];
+    }
+
+    inline void Write(unsigned long long uAddress, uint8_t btValue)
+    {
+        CheckAddress("Write", uAddress);
+
+        m_pRealMemory[uAddress] = btValue;
+    }
 };
 
 class Emulation
 {
 public:
 
-    EmulatedRegisters* m_pRegisters;
+    EmulatedRegisters*              m_pRegisters    = nullptr;
+    EmulatedMemory<MEMORY_SIZE>*    m_pMemory       = nullptr;  // TODO: Make this flexible.
 
     Emulation();
     ~Emulation();
 
     void Reset();
+    void Dump();
     
     InstructionReturn* ExecuteSingleInstruction(std::string InstructionString);
 };

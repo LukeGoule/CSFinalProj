@@ -7,18 +7,20 @@ int main(int argc, char** argv)
 {
 
     Emulation* pEmulationInstance = new Emulation();
-
-    pEmulationInstance->ExecuteSingleInstruction("MOV R0, 100");
-
+    pEmulationInstance->Reset();
+    
     std::string OneInstruction;
 
     while (true)
     {
         std::getline(std::cin, OneInstruction);
         
-        for (auto x : Utils::TokeniseInstruction(OneInstruction))
+        try {
+            pEmulationInstance->ExecuteSingleInstruction(OneInstruction);
+        }
+        catch (const std::runtime_error& Error)
         {
-            std::cout << x << std::endl;
+            std::cout << "Caught error: " << Error.what() << std::endl;
         }
     }
 
