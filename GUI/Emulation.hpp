@@ -114,7 +114,7 @@ public:
     void QuickExecutionMode();
     
     bool ExecuteSingleInstruction(std::string InstructionString);
-    bool RunFile(std::string FileData, bool* bForceStopCondition, int* piStepDelayMS); // Each line should be delimited by \n. Normal file storage automatically does this.
+    bool RunFile(std::string FileData, bool* bForceStopCondition, int* piStepDelayMS, bool* bPaused); // Each line should be delimited by \n. Normal file storage automatically does this.
 };
 
 #endif

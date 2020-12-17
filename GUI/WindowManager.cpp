@@ -9,11 +9,13 @@
 #include "Instructions.hpp"
 #include "Mappings.hpp"
 
+#include "resource.h"
+
 #include <stdexcept>
 #include <thread>
 #include <chrono>
 
-bool g_bEmulatorRunning = false;
+bool g_bEmulatorRunning = false, g_bEmulatorPaused = false;
 Emulation Emulator;
 TextEditor Editor;
 std::string CodeString = "; This is an example program that this assembly language emulator can execute.\n; It will simply count to 200, then exit.\n\nMOV R0, #0; Clear R0\n\nloop:\n\tADD R0, R0, #1; Increment R0\n\tCMP R0, #200; Test R0 against the value 200\n\tOUT R0; Print R0\n\tBNE loop; Loop if not equal\n\nHALT";
@@ -25,11 +27,13 @@ void EmulationThread()
 {
     while (true)
     {
+        Sleep(10); // This delay must be added in to allow time for the CPU to rest, otherwise we're running millions of cycles a second for no reason.
+
         if (!g_bEmulatorRunning) continue;
 
         try 
         {
-            Emulator.RunFile(CodeString, &g_bEmulatorRunning, &delayMS);
+            Emulator.RunFile(CodeString, &g_bEmulatorRunning, &delayMS, &g_bEmulatorPaused);
         }
         catch (const std::runtime_error& Error)
         {
@@ -120,6 +124,11 @@ void WindowManager::Main()
                 {
                     g_bEmulatorRunning = !g_bEmulatorRunning;
                 }
+                ImGui::SameLine();
+                if (ImGui::Button(g_bEmulatorPaused ? "PLAY" : "PAUSE"))
+                {
+                    g_bEmulatorPaused = !g_bEmulatorPaused;
+                }
             }
             ImGui::PopFont();
 
@@ -128,7 +137,7 @@ void WindowManager::Main()
             ImGui::LabelText("", "Last Error: \"%s\"", g_LastError.c_str());
             ImGui::SameLine();
             ImGui::PushItemWidth(250);
-            ImGui::SliderInt("Delay (MS)", &delayMS, 0, 2000);
+            ImGui::SliderInt("Delay", &delayMS, 5, 1000, "%dms");
             ImGui::PopItemWidth();
 
             // Left frame
@@ -246,6 +255,8 @@ void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHei
         ^ WS_MAXIMIZEBOX)                           // No maximize box
         ^ WS_SIZEBOX);                              // Disable resizing.
 
+    SetClassLong(this->m_pWindowHandle, GCLP_HICON, (LONG)LoadIconW(hInstance, MAKEINTRESOURCE(IDI_ICON1))); // set custom icon
+
     if (!CreateDeviceD3D(this->m_pWindowHandle))
     {
         MessageBoxA(0, "FATAL! Failed to initialise DirectX", "FATAL ERROR", 0);
@@ -257,8 +268,6 @@ void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHei
 
     ShowWindow(this->m_pWindowHandle, SW_SHOWDEFAULT);
     UpdateWindow(this->m_pWindowHandle);
-
-    //SetClassLong(hwnd, GCL_HICON, (LONG)LoadIconA(hInstance, MAKEINTRESOURCE(IDI_ICON1))); // set custom icon
 
     if (!CreateDeviceD3D(this->m_pWindowHandle))
     {

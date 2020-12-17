@@ -136,7 +136,7 @@ void Emulation::QuickExecutionMode()
     }
 }
 
-bool Emulation::RunFile(std::string FileData, bool* bContinueCondition, int* piStepDelayMS)
+bool Emulation::RunFile(std::string FileData, bool* bContinueCondition, int* piStepDelayMS, bool* bPaused)
 {
     if (FileData.size() == 0)
     {
@@ -149,6 +149,12 @@ bool Emulation::RunFile(std::string FileData, bool* bContinueCondition, int* piS
 
     while (true)
     {
+        if (bPaused && *bPaused)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            continue;
+        }
+
         if (bContinueCondition && !(*bContinueCondition))
             break;
 
@@ -156,7 +162,6 @@ bool Emulation::RunFile(std::string FileData, bool* bContinueCondition, int* piS
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(*piStepDelayMS));
         }
-
 
         if (this->m_pRegisters->_IP == Lines.size())
         {
