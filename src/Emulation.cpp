@@ -6,9 +6,12 @@
 #include <iostream>
 #include <string>
 
+#pragma warning(disable: 26495) // Uninitialised class members.
+
 Emulation::Emulation()
 {
     this->m_pMemory = new EmulatedMemory<MEMORY_SIZE>();
+    this->m_pLabelManager = new LabelManager<MEMORY_ADDRESS_SIZE>();
 }
 
 Emulation::~Emulation()
@@ -65,16 +68,19 @@ void Emulation::Reset()
 
     this->m_pRegisters = (EmulatedRegisters*)malloc(sizeof(EmulatedRegisters));
     this->m_pMemory->ResetMemory();
+    this->m_pLabelManager->Reset();
 }
 
-InstructionReturn* Emulation::ExecuteSingleInstruction(std::string InstructionString)
+bool Emulation::ExecuteSingleInstruction(std::string InstructionString)
 {
-    std::vector<std::string> ParsedInstruction = Utils::TokeniseInstruction(InstructionString);
+    std::vector<std::string> ParsedInstruction = Utils::StripEmptyFromArray(Utils::TokeniseInstruction(InstructionString));
     
     // Is it a label?
     if (ParsedInstruction[ParsedInstruction.size() - 1] == ":")
     {
-        return nullptr;
+        throw std::runtime_error{ "Attempted to define a label within quick execution mode!" };
+
+        return false;
     }
 
     unsigned long long uMappedInstruction = Utils::InstructionMnemonicToID(ParsedInstruction[0]);
@@ -88,16 +94,137 @@ InstructionReturn* Emulation::ExecuteSingleInstruction(std::string InstructionSt
 
     pCallableBoundFunction(this, ParsedInstruction);
 
-    return nullptr;
+    return false;
 }
 
 void Emulation::Dump()
 {
     for (unsigned long long i = 0; i < 12; i++)
     {
-        std::cout << "R" << i << " -> " << *(this->m_pRegisters->GetRegisterByNumber(i)) << std::endl;
+        std::cout << "R" << i << " = " << *(this->m_pRegisters->GetRegisterByNumber(i)) << std::endl;
     }
 
-    std::cout << "IP -> " << this->m_pRegisters->_IP << std::endl;
-    std::cout << "CF -> " << this->m_pRegisters->_CF << std::endl;
+    std::cout << "IP   = " << this->m_pRegisters->_IP << std::endl;
+    std::cout << "F_EQ = " << this->m_pRegisters->_F_EQ << std::endl;
+    std::cout << "F_NE = " << this->m_pRegisters->_F_NE << std::endl;
+    std::cout << "F_GT = " << this->m_pRegisters->_F_GT << std::endl;
+    std::cout << "F_LT = " << this->m_pRegisters->_F_LT << std::endl;
+}
+
+void Emulation::QuickExecutionMode() 
+{
+    std::cout << "Quick Execution Mode" << std::endl;
+    std::cout << "Everything you type will be interpreted as assembly." << std::endl;
+
+    std::string OneInstruction;
+
+    while (true)
+    {
+        std::cout << ">> ";
+        std::getline(std::cin, OneInstruction);
+
+        try 
+        {
+            this->ExecuteSingleInstruction(OneInstruction);
+        }
+        catch (const std::runtime_error& Error)
+        {
+            std::cout << "[QuickExc] Caught error: " << Error.what() << std::endl;
+        }
+    }
+}
+
+bool Emulation::RunFile(std::string FileData)
+{
+    if (FileData.size() == 0)
+    {
+        throw std::runtime_error{ "Empty file data? -> Was the file name correct?" };
+    }
+
+    std::vector<std::string> Lines = Utils::BasicStringExplode(FileData, '\n');
+
+    this->m_pRegisters->_IP = 0;
+
+    while (true)
+    {
+        if (this->m_pRegisters->_IP == Lines.size())
+        {
+            break;
+        }
+
+        std::string RawLine = Lines[this->m_pRegisters->_IP];
+
+        if (RawLine.size() == 0)
+        {
+            this->m_pRegisters->_IP++;
+            continue;
+        }
+
+        std::string FullInstruction = Utils::RemovePrecedingWhitespace(RawLine);
+        
+        if (FullInstruction.size() == 0)
+        {
+            this->m_pRegisters->_IP++;
+            continue;
+        }
+
+        std::vector<std::string> Tokenised = Utils::TokeniseInstruction(FullInstruction);
+        std::vector<std::string> ParsedInstruction = Utils::StripEmptyFromArray(Tokenised);
+
+        if (ParsedInstruction.size() == 0)
+        {
+            this->m_pRegisters->_IP++;
+            continue;
+        }
+
+        // Is it a label?
+        if (ParsedInstruction[ParsedInstruction.size() - 1] == ":")
+        {
+            std::string LabelIdentifier = ParsedInstruction[0];
+
+            if (LabelIdentifier.size() == 0)
+            {
+                throw std::runtime_error{ "Label name length must be above zero." };
+            }
+
+            // A new label is the current instruction pointer. When jumping to a label, the instruction pointer is set.
+            this->m_pLabelManager->InsertLabel(LabelIdentifier, this->m_pRegisters->_IP);
+
+            this->m_pRegisters->_IP++;
+            
+            continue;
+        }
+
+        // Get this current instructions mapped value, if possible.
+        unsigned long long uMappedInstruction = Utils::InstructionMnemonicToID(ParsedInstruction[0]);
+
+        if (uMappedInstruction < 0 || uMappedInstruction > 20)
+        {
+            // We're unlikely to actually reach here, but it's safe to check either way.
+            throw std::runtime_error{ "Invalid instruction detected!" };
+
+            return false;
+        }
+
+        BoundInstruction_t pCallableBoundFunction = InstructionBindings[uMappedInstruction];
+
+        if (!pCallableBoundFunction)
+        {
+            throw std::runtime_error{ "Severe error! Instructions internal binding not found!!" };
+           
+            return false;
+        }
+
+        try
+        {
+            pCallableBoundFunction(this, ParsedInstruction);
+        }
+        catch (const std::exception& Error)
+        {
+            std::cout << "[file] Error caught: " << Error.what() << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }

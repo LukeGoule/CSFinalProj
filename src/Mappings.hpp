@@ -61,7 +61,7 @@
 // Perform a bitwise logical OR operation between the value in register n and the value specified by <operand2> and store the result in register d.
 #define ORR     LDR + 12
 
-// EOR Rd, Rn, <operand2> 
+// XOR Rd, Rn, <operand2> 
 // Perform a bitwise logical XOR (exclusive or) operation between the value in register n and the value specified by <operand2> and store the result in register d.
 #define EOR     LDR + 13
 

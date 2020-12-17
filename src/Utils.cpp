@@ -18,27 +18,28 @@ std::vector<std::string> Utils::TokeniseInstruction(std::string Instruction)
         switch (Character)
         {
         case ' ':
-            Output.push_back(CurrentToken);
+            Output.push_back(Utils::StripWhiteSpace(CurrentToken));
             CurrentToken.clear();
             break;
         case ':':   // Indicates the end of a line, meaning we can ignore comments after it.
-            Output.push_back(CurrentToken);
+            Output.push_back(Utils::StripWhiteSpace(CurrentToken));
             Output.push_back(":"); // Labels will always end in ":". This is easy to check.
             return Output;
         case ',':
-            Output.push_back(CurrentToken);
+            Output.push_back(Utils::StripWhiteSpace(CurrentToken));
             Output.push_back(",");
             CurrentToken.clear();
             break;
         case ';':   // Comment. We can ignore this and everything else after it.
-            return Output;
+            Output.push_back(Utils::StripWhiteSpace(CurrentToken));
+            return Utils::StripEmptyFromArray(Output);
         default:
             CurrentToken.push_back(Character);
             break;
         }
     }
 
-    Output.push_back(CurrentToken);
+    Output.push_back(Utils::StripWhiteSpace(CurrentToken));
 
     return Utils::StripEmptyFromArray(Output); // finally, strip all the empty ones to return a clean array.
 }
@@ -55,6 +56,96 @@ std::vector<std::string> Utils::StripEmptyFromArray(std::vector<std::string> InA
     }
 
     return OutArray;
+}
+
+std::vector<std::string> Utils::BasicStringExplode(std::string InputString, char Delimiter)
+{
+    if (InputString.size() == 0)
+        return {};
+
+    std::vector<std::string> Output;
+    std::string CurrentString;
+
+    for (auto Character : InputString)
+    {
+        if (Character == Delimiter)
+        {
+            Output.push_back(CurrentString);
+            CurrentString.clear();
+        }
+        else 
+        {
+            CurrentString.push_back(Character);
+        }
+    }
+
+    if (CurrentString.size() != 0)
+        Output.push_back(CurrentString);
+
+    return Output;
+}
+
+std::vector<std::string> Utils::ArgArrayFromMainArgs(int argc, char** argv)
+{
+    std::vector<std::string> Output;
+
+    for (int i = 0; i < argc; i++)
+    {
+        std::string CurrentArg = std::string(argv[i]);
+
+        if (Utils::IsStringEmpty(CurrentArg)) continue;
+
+        Output.push_back(CurrentArg);
+    }
+
+    return Output;
+}
+
+std::string Utils::RemovePrecedingWhitespace(std::string InputString)
+{
+    std::string Output;
+    std::size_t i = 0;
+
+    for (; i < InputString.size(); i++)
+    {
+        bool bExit = false;
+        switch (InputString[i])
+        {
+        case '\n':
+        case '\t':
+        case '\b':
+        case '\r':
+            break;
+        default:
+            bExit = true;
+        }
+
+        if (bExit) break;
+    }
+
+    return InputString.substr(i, InputString.size());
+}
+
+std::string Utils::StripWhiteSpace(std::string InputString)
+{
+    std::string Output;
+
+    for (auto Character : InputString)
+    {
+        switch (Character)
+        {
+        case '\n':
+        case '\r':
+        case '\b':
+        case '\t':
+            break;
+        default:
+            Output.push_back(Character);
+            break;
+        }
+    }
+
+    return Output;
 }
 
 bool Utils::IsStringEmpty(std::string InputString)
@@ -80,6 +171,16 @@ bool Utils::IsStringEmpty(std::string InputString)
     }
 
     return true;
+}
+
+bool Utils::ExistsWithinArray(std::vector<std::string> InputArray, std::string SearchItem)
+{
+    for (auto Item : InputArray)
+    {
+        if (Item == SearchItem) return true;
+    }
+
+    return false;
 }
 
 unsigned long Utils::InstructionMnemonicToID(std::string Mnemonic)

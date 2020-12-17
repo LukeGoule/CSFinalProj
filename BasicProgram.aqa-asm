@@ -1,0 +1,12 @@
+start:			; This technically isn't necessary
+	; Clear R0
+	MOV R0, #0
+	
+loop:
+	ADD R0, R0, #1	; Increment R0
+	CMP R0, #200	; Test R0 against the value 200
+	OUT R0			; Print R0
+	BNE loop		; Loop if not equal
+
+finally:
+	HALT

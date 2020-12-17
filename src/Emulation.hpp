@@ -1,132 +1,117 @@
 #ifndef EMULATION_HPP
 #define EMULATION_HPP
 
-#include <string>
-#include <stdexcept>
+#include "EmulatedMemory.hpp"
+#include "Labels.hpp"
 
-/*
-Based heavily off this: https://filestore.aqa.org.uk/resources/computing/AQA-75162-75172-ALI.PDF
-*/
+#define RETURN_VAL_SIZE         unsigned long long
+#define REGISTER_VAL_SIZE       unsigned long long
+#define REGISTER_DEFAULT_VALUE  (REGISTER_VAL_SIZE)0L
+#define MEMORY_ADDRESS_SIZE     unsigned long long
+#define MEMORY_SIZE             1024 * 16               // 16 KB
 
-#define RETURN_VAL_SIZE     unsigned long long
-#define REGISTER_VAL_SIZE   unsigned long long
-#define MEMORY_SIZE         1024 * 16               // 16 KB
-
-class InstructionReturn
-{
-    RETURN_VAL_SIZE m_uReturnValue = 0L;
-public:
-
-    InstructionReturn(RETURN_VAL_SIZE uReturnValue);
-    ~InstructionReturn();
-
-    RETURN_VAL_SIZE GetReturnValue();
-};
-
-#define RegFunc(n) REGISTER_VAL_SIZE* R##n () { return &this->_Reg##n; }
+// RegFunc is the quick getter/setter definer.
+// Returns a pointer which may be modified in any way.
+#define RegFunc(n)          REGISTER_VAL_SIZE* R##n () { return &this->_Reg##n; }
 
 class EmulatedRegisters
 {
     // "The available general purpose registers that the programmer can use are numbered 0 to 12."
-    REGISTER_VAL_SIZE _Reg0;
-    REGISTER_VAL_SIZE _Reg1;
-    REGISTER_VAL_SIZE _Reg2;
-    REGISTER_VAL_SIZE _Reg3;
-    REGISTER_VAL_SIZE _Reg4;
-    REGISTER_VAL_SIZE _Reg5;
-    REGISTER_VAL_SIZE _Reg6;
-    REGISTER_VAL_SIZE _Reg7;
-    REGISTER_VAL_SIZE _Reg8;
-    REGISTER_VAL_SIZE _Reg9;
-    REGISTER_VAL_SIZE _Reg10;
-    REGISTER_VAL_SIZE _Reg11;
+    REGISTER_VAL_SIZE _Reg0     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg1     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg2     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg3     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg4     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg5     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg6     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg7     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg8     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg9     = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg10    = REGISTER_DEFAULT_VALUE;
+    REGISTER_VAL_SIZE _Reg11    = REGISTER_DEFAULT_VALUE;
     
 public:
-
+    
+    // Constructor
     EmulatedRegisters();
+
+    // Destructor
     ~EmulatedRegisters();
 
-    RegFunc(0)
-    RegFunc(1)
-    RegFunc(2)
-    RegFunc(3)
-    RegFunc(4)
-    RegFunc(5)
-    RegFunc(6)
-    RegFunc(7)
-    RegFunc(8)
-    RegFunc(9)
-    RegFunc(10)
-    RegFunc(11)
+    // Getter / setter for R0
+    RegFunc(0);
 
+    // getter / setter for R1
+    RegFunc(1);
+
+    // Getter / setter for R2
+    RegFunc(2);
+
+    // Getter / setter for R3
+    RegFunc(3);
+
+    // Getter / setter for R4
+    RegFunc(4);
+
+    // Getter / setter for R5
+    RegFunc(5);
+
+    // Getter / setter for R6
+    RegFunc(6);
+
+    // Getter / setter for R7
+    RegFunc(7);
+
+    // Getter / setter for R8
+    RegFunc(8);
+
+    // Getter / setter for R9
+    RegFunc(9);
+
+    // Getter / setter for R10
+    RegFunc(10);
+
+    // Getter / setter for R11
+    RegFunc(11);
+
+    // Returns the pointer to a register by it's register "ID".
     REGISTER_VAL_SIZE* GetRegisterByNumber(unsigned long long n);
 
-    REGISTER_VAL_SIZE _IP;
-    REGISTER_VAL_SIZE _CF; // Carry Flag, set to 1 when CMP is true.
-};
+    // Instruction pointer.
+    REGISTER_VAL_SIZE _IP       = REGISTER_DEFAULT_VALUE;
 
-template<unsigned long long MemSize> class EmulatedMemory
-{
+
+    /* Possible comparison returns. */
+
+    // Equal to
+    REGISTER_VAL_SIZE _F_EQ     = REGISTER_DEFAULT_VALUE;
     
-    uint8_t* m_pRealMemory;   // Memory!! Not a string!
-
-public:
-
-    inline EmulatedMemory()
-        : m_pRealMemory(nullptr)
-    {
-        this->ResetMemory();
-    }
-
-    inline ~EmulatedMemory()
-    {
-
-    }
-
-    inline void ResetMemory()
-    {
-        m_pRealMemory = (uint8_t*)malloc(MemSize);
-    }
-
-    inline bool CheckAddress(std::string OperationName, unsigned long long uAddress)
-    {
-        if (uAddress < 0 || uAddress > MemSize)
-        {
-            throw std::runtime_error{ "[" + OperationName + "] Attempted access outside of useable memory!" };
-        }
-
-        return true;
-    }
-
-    inline uint8_t Read(unsigned long long uAddress)
-    {
-        CheckAddress("Read", uAddress);
-
-        return m_pRealMemory[uAddress];
-    }
-
-    inline void Write(unsigned long long uAddress, uint8_t btValue)
-    {
-        CheckAddress("Write", uAddress);
-
-        m_pRealMemory[uAddress] = btValue;
-    }
+    // Not equal to
+    REGISTER_VAL_SIZE _F_NE     = REGISTER_DEFAULT_VALUE;
+    
+    // Greater than
+    REGISTER_VAL_SIZE _F_GT     = REGISTER_DEFAULT_VALUE;
+    
+    // Less than
+    REGISTER_VAL_SIZE _F_LT     = REGISTER_DEFAULT_VALUE;
 };
 
 class Emulation
 {
 public:
 
-    EmulatedRegisters*              m_pRegisters    = nullptr;
-    EmulatedMemory<MEMORY_SIZE>*    m_pMemory       = nullptr;  // TODO: Make this flexible.
-
+    EmulatedRegisters*                  m_pRegisters    = nullptr;
+    EmulatedMemory<MEMORY_SIZE>*        m_pMemory       = nullptr;  // TODO: Make this flexible.
+    LabelManager<MEMORY_ADDRESS_SIZE>*  m_pLabelManager = nullptr;
     Emulation();
     ~Emulation();
 
     void Reset();
     void Dump();
+    void QuickExecutionMode();
     
-    InstructionReturn* ExecuteSingleInstruction(std::string InstructionString);
+    bool ExecuteSingleInstruction(std::string InstructionString);
+    bool RunFile(std::string FileData); // Each line should be delimited by \n. Normal file storage automatically does this.
 };
 
 #endif
