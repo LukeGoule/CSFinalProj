@@ -6,7 +6,7 @@ Write your program with any kind of text editor, then drag and drop the program 
 Alternatively you can directly execute the program and run "Quick Execution Mode" which allows you to enter instructions manually or enter a file name to load. (file loading like this is currently none functional, for whatever reason).
 
 ## A simple program
-```
+```asm
 ; This is an example program that this assembly language emulator can execute.
 ; It will simply count to 200, then exit.
 
