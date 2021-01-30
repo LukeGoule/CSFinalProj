@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 
 	std::ifstream File(ToRun);
 
-	if (!File.is_open())
+	if (!File.is_open()) 
 	{
 		std::cout << "Failed to find file " << ToRun << std::endl;
 		return 0;
