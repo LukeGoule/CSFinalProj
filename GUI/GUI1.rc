@@ -52,7 +52,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "C:\\Users\\Luke\\source\\repos\\Simple_AQA_Executor\\Simple_AQA_ASM_Executor\\GUI.ico"
+IDI_ICON1               ICON                    "D:\\source\\repos\\Simple_AQA_Executor\\Simple_AQA_ASM_Executor\\GUI.ico"
 
 #endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////

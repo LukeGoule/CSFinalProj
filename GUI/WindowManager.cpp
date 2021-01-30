@@ -1,13 +1,19 @@
 #include "WindowManager.hpp"
-#include "HurtMold.hpp"
 
 #include "imgui_impl_dx10.hpp"
 #include "imgui_impl_win32.hpp"
-#include "TextEditor.hpp"
+#include "ImGui_CustomExtensions.hpp"
 
 #include "Emulation.hpp"
 #include "Instructions.hpp"
 #include "Mappings.hpp"
+#include "DefaultProgram.hpp"
+#include "EmulationManager.hpp"
+
+#include "Menu.hpp"
+#include "Localisation.hpp"
+#include "Colours.hpp"
+#include "Fonts.hpp"
 
 #include "resource.h"
 
@@ -15,215 +21,137 @@
 #include <thread>
 #include <chrono>
 
-bool g_bEmulatorRunning = false, g_bEmulatorPaused = false;
-Emulation Emulator;
-TextEditor Editor;
-std::string CodeString = "; This is an example program that this assembly language emulator can execute.\n; It will simply count to 200, then exit.\n\nMOV R0, #0; Clear R0\n\nloop:\n\tADD R0, R0, #1; Increment R0\n\tCMP R0, #200; Test R0 against the value 200\n\tOUT R0; Print R0\n\tBNE loop; Loop if not equal\n\nHALT";
-
-std::string g_LastError = "";
-int delayMS = 500;
-
-void EmulationThread()
-{
-    while (true)
-    {
-        Sleep(10); // This delay must be added in to allow time for the CPU to rest, otherwise we're running millions of cycles a second for no reason.
-
-        if (!g_bEmulatorRunning) continue;
-
-        try 
-        {
-            Emulator.RunFile(CodeString, &g_bEmulatorRunning, &delayMS, &g_bEmulatorPaused);
-        }
-        catch (const std::runtime_error& Error)
-        {
-            g_LastError = Error.what();
-        }
-        catch (const std::out_of_range& Error)
-        {
-            g_LastError = Error.what();
-        }
-
-        g_bEmulatorRunning = false;
-    }
-}
-
 void WindowManager::Main() 
 {
     TextEditor::LanguageDefinition EditorLanguage = TextEditor::LanguageDefinition::AQA_ASM();
     
-    Editor.SetTabSize(4);
-    Editor.SetShowWhitespaces(false);
-    Editor.SetLanguageDefinition(EditorLanguage);
-    Editor.SetText(CodeString);
+    EmulationManager::NewState();
 
-    Emulator.Reset();
+    // Configuration for the text editor extension.
+    m_Editor.SetTabSize(4);
+    m_Editor.SetShowWhitespaces(false);
+    m_Editor.SetLanguageDefinition(EditorLanguage);
+    m_Editor.SetText(GET_EMULATOR_CODE);
 
-    *Emulator.m_pRegisters->R0() = 0;
-    *Emulator.m_pRegisters->R1() = 0;
-    *Emulator.m_pRegisters->R2() = 0;
-    *Emulator.m_pRegisters->R3() = 0;
-    *Emulator.m_pRegisters->R4() = 0;
-    *Emulator.m_pRegisters->R5() = 0;
-    *Emulator.m_pRegisters->R6() = 0;
-    *Emulator.m_pRegisters->R7() = 0;
-    *Emulator.m_pRegisters->R8() = 0;
-    *Emulator.m_pRegisters->R9() = 0;
-    *Emulator.m_pRegisters->R10() = 0;
-    *Emulator.m_pRegisters->R11() = 0;
+    // Manually override the HALT instruction. Makes good use of macros for readable code.
+    // This is a lambda function, though, which isn't good practice. Works though.
+    // The new HALT instruction will stop the emulator thread from doing anything until the user
+    // clicks "Run" again.
+    InstructionBindings[HALT] = [](INSTRUCTION_INPUTS) 
+    {
+        SET_EMULATOR_RUNNING(false);
+        SET_EMULATOR_ERROR(Localisation.HaltProcessor);
 
-    Emulator.m_pRegisters->_IP = 0;
-    Emulator.m_pRegisters->_F_EQ = 0;
-    Emulator.m_pRegisters->_F_NE = 0;
-    Emulator.m_pRegisters->_F_GT = 0;
-    Emulator.m_pRegisters->_F_LT = 0;
-
-    std::thread t0(EmulationThread);
-
-    // Manually override the HALT instruction
-    InstructionBindings[HALT] = [](INSTRUCTION_INPUTS) {
-        
-        g_bEmulatorRunning = false;
-        g_LastError = "Processor halted.";
-        
         return INSTRUCTION_EXECUTE_OK;
     };
+    
+    // Start the emulator's own thread.
+    EmulationManager::Launch();
 
-    // Main loop
-    MSG msg;
-    ZeroMemory(&msg, sizeof(msg));
-    while (msg.message != WM_QUIT && !this->m_bForceQuit)
+    //
+    Fonts::Load();
+
+    //
+    MenuSystem::SetInstance(this);
+    MenuSystem::ConstructMenuTree();
+    MenuSystem::LoadComponents(); // resource loading etc.
+
+    MSG pWndProcMsg;
+    ZeroMemory(&pWndProcMsg, sizeof(pWndProcMsg));
+    
+    // This loop should run 60 times a second, or more if the user's monitor supports it (or less even).
+    // It will only quit when the application receives the WM_QUIT message from Windows or m_bForceQuit is set
+    // to true. Any other way of quitting could be unsafe if file operations are happening.
+    while (pWndProcMsg.message != WM_QUIT && !m_bForceQuit)
     {
-        if (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        if (PeekMessage(&pWndProcMsg, NULL, 0U, 0U, PM_REMOVE))
         {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
+            TranslateMessage(&pWndProcMsg);
+            DispatchMessage(&pWndProcMsg);
             continue;
         }
 
-        // Start the Dear ImGui frame
+        // Checks if the DX object has been invalidated, update if so. 
+        // Clears the previous render state ready to draw again.
         ImGui_ImplDX10_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2(this->m_iWindowSizeX, this->m_iWindowSizeY));
-        ImGui::Begin("##lololol", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-        {
-            ImGui::PushFont(this->m_pFontConsolas);
-            {
-                Editor.Render("Code Entry", ImVec2(this->m_iWindowSizeX - 30, this->m_iWindowSizeY - 300));
-            }
-            ImGui::PopFont();
-
-            ImGui::Spacing();
-
-            ImGui::PushFont(this->m_pFontVerdana);
-            {
-                if (ImGui::Button(g_bEmulatorRunning ? "STOP" : "RUN"))
-                {
-                    g_bEmulatorRunning = !g_bEmulatorRunning;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button(g_bEmulatorPaused ? "PLAY" : "PAUSE"))
-                {
-                    g_bEmulatorPaused = !g_bEmulatorPaused;
-                }
-            }
-            ImGui::PopFont();
-
-            ImGui::SameLine();
-            ImGui::PushItemWidth(250);
-            ImGui::LabelText("", "Last Error: \"%s\"", g_LastError.c_str());
-            ImGui::SameLine();
-            ImGui::PushItemWidth(250);
-            ImGui::SliderInt("Delay", &delayMS, 5, 1000, "%dms");
-            ImGui::PopItemWidth();
-
-            // Left frame
-            ImGui::BeginChildFrame(82394809234, ImVec2((this->m_iWindowSizeX - 30) / 2, 205));
-            {
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R0   %020llu", *Emulator.m_pRegisters->R0());
-                ImGui::Text("R1   %020llu", *Emulator.m_pRegisters->R1());
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R2   %020llu", *Emulator.m_pRegisters->R2());
-                ImGui::Text("R3   %020llu", *Emulator.m_pRegisters->R3());
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R4   %020llu", *Emulator.m_pRegisters->R4());
-                ImGui::Text("R5   %020llu", *Emulator.m_pRegisters->R5());
-               
-                ImGui::Spacing();
-
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "EQ   %020llu", Emulator.m_pRegisters->_F_EQ);
-                ImGui::Text("NE   %020llu", Emulator.m_pRegisters->_F_NE);
-                
-                ImGui::Spacing();
-
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "IP   %020llu", Emulator.m_pRegisters->_IP);
-            }
-            ImGui::EndChildFrame();
-
-            ImGui::SameLine();
-
-            // Right frame
-            ImGui::BeginChildFrame(82394809235, ImVec2((this->m_iWindowSizeX - 30) / 2, 205));
-            {
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R6   %020llu", *Emulator.m_pRegisters->R6());
-                ImGui::Text("R7   %020llu", *Emulator.m_pRegisters->R7());
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R8   %020llu", *Emulator.m_pRegisters->R8());
-                ImGui::Text("R9   %020llu", *Emulator.m_pRegisters->R9());
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "R10  %020llu", *Emulator.m_pRegisters->R10());
-                ImGui::Text("R11  %020llu", *Emulator.m_pRegisters->R11());
-                
-                ImGui::Spacing();
-
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "GT   %020llu", Emulator.m_pRegisters->_F_GT);
-                ImGui::Text("LT   %020llu", Emulator.m_pRegisters->_F_LT);
-
-                ImGui::Spacing();
-
-                ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1), "Eval `%s`", Emulator.CurrentInstruction.c_str());
-            }
-            ImGui::EndChildFrame();
-
-            ImGui::TextColored(ImVec4(0.25f, 0.25f, 0.25f, 1), "Copyright (c) Luke Goule    Released under MIT License");
-        }
-        ImGui::End();
+        // Our menu
+        DrawImGui();
         
-        CodeString = Editor.GetText();
+        // Update the code the emulator instance can see if the user changes the visible code.
+        // They need to be synchronised.
+        // TODO: Rescan the code on code change or specific key press. (SHIFT+S ?)
+        if (m_Editor.IsTextChanged())
+            SET_EMULATOR_CODE(m_Editor.GetText());
 
-        if (g_bEmulatorRunning) 
+        if (GET_EMULATOR_RUNNING) 
         {
+            // Set a red "error marker" on the current / last executed line.
             TextEditor::ErrorMarkers x;
-            x.insert(std::make_pair<int, std::string>((int)Emulator.m_pRegisters->_IP, "Currently executing line."));
-            Editor.SetErrorMarkers(x);
+            x.insert(std::make_pair<int, std::string>((int)REGISTERS->_IP, _c Localisation.CurrentExecLine));
+            m_Editor.SetErrorMarkers(x);
         }
         else
         {
+            // Empty list of "error markers" so no red things linger on the screen.
             TextEditor::ErrorMarkers x;
-            Editor.SetErrorMarkers(x);
+            m_Editor.SetErrorMarkers(x);
         }
 
-        static float clear_color[4] = { 0,0,0,0 };
+        // Clear the DirectX framebuffer to purple.
+        // If the user can see this then something has gone wrong during the initialisation process.
+        static float clear_color[4] = { 1.f, 0.f, 1.f, 1.f };
 
-        // Rendering
+        // Render all the ImGui stuff.
         ImGui::Render();
-        this->m_pD3DDevice->OMSetRenderTargets(1, &this->m_pMainRenderTargetView, NULL);
-        this->m_pD3DDevice->ClearRenderTargetView(this->m_pMainRenderTargetView, (float*)clear_color);
+
+        // Clear the previous FB on DX.
+        m_pD3DDevice->OMSetRenderTargets(1, &m_pMainRenderTargetView, NULL);
+        m_pD3DDevice->ClearRenderTargetView(m_pMainRenderTargetView, (float*)clear_color);
+    
+        // Draw ImGui's draw data onto DirectX.
         ImGui_ImplDX10_RenderDrawData(ImGui::GetDrawData());
 
-        // VSync On
-        this->m_pSwapChain->Present(1, 0);
-
-        // VSync Off
-        // this->m_pSwapChainn->Present(0, 0);
+        // Must be the last draw-related call. Also determines if VSync is enabled.
+        m_pSwapChain->Present((UINT)m_bVsync, 0);
     }
 }
 
-void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHeight, HINSTANCE hInstance) {
+void WindowManager::DrawImGui()
+{
+    // The ImGui window must be drawn at -1,-1 otherwise the user can see the surrounding border because of ImGui's way of rendering.
+    ImGui::SetNextWindowPos(ImVec2(-1, -1));
+    ImGui::SetNextWindowSize(ImVec2(m_iWindowSizeX, m_iWindowSizeY));
 
-    this->m_iWindowSizeX = iWidth;
-    this->m_iWindowSizeY = iHeight;
-    this->m_szWindowName = szWindowClassName;
+    ImGui::Begin("##MainRenderImGui", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+    {
+        MenuSystem::DrawTree();
+    }
+    ImGui::End();
 
+    // Compile-time determination as to whether to include this code. There is no need for it if we aren't compiling in debug mode.
+#if _DEBUG
+    ImGui::SetNextWindowPos(ImVec2(m_iWindowSizeX+1, 0));
+    ImGui::SetNextWindowSize(ImVec2(m_iDebugExtraWidth - 7, m_iWindowSizeY));
+    ImGui::Begin("##DebugScreen", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+    ImGui::PushFont(m_pFontConsolas);
+    {
+        ImGui::Text("Debug Extension");
+    }
+    ImGui::PopFont();
+    ImGui::End();
+#endif
+}
+
+void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHeight, HINSTANCE hInstance)
+{
+    m_iWindowSizeX = iWidth;
+    m_iWindowSizeY = iHeight;
+    m_szWindowName = szWindowClassName;
+
+    // Create a new Window class structure with the data we want (size, style, etc).
     WNDCLASSEX wc = {
         sizeof(WNDCLASSEX),
         CS_CLASSDC,
@@ -239,51 +167,71 @@ void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHei
         NULL
     };
     
+    // Register this window class within Windows.
+    // The window hasn't yet actually been created.
     RegisterClassEx(&wc);
     
-    this->m_pWindowHandle = CreateWindow(wc.lpszClassName, this->m_szWindowName, 0, 100, 100, this->m_iWindowSizeX, this->m_iWindowSizeY, NULL, NULL, wc.hInstance, NULL);
+    int iInitialiseWidthX = m_iWindowSizeX,
+        iInitialiseWidthY = m_iWindowSizeY;
 
-    if (!this->m_pWindowHandle)
+#if _DEBUG // Add some width to the window if we're compiling to debug.
+    iInitialiseWidthX += m_iDebugExtraWidth + 10;
+#endif
+
+    // Get ourselves a handle of our window. Give Windows kernel everything it needs to generate a new window instance that we can modify.
+    // No proper layered window styling is set here, as can be seen  VVVV <- here.
+    m_hWindowHandle = CreateWindow(wc.lpszClassName, m_szWindowName, NULL, 100, 100, iInitialiseWidthX, iInitialiseWidthY, NULL, NULL, wc.hInstance, NULL);
+
+    // In the case that Windows decided to not give us a Window for once, or we gave it bad data, show an error to the user.
+    if (!m_hWindowHandle)
     {
-        throw std::runtime_error{ "FATAL! Failed to initialise window!" };
+        MessageBoxA(0, Localisation.Error.WindowInit, Localisation.Error.Fatal, MB_ICONERROR);
+        abort(); // probably unsafe.
+        return;
     }
 
-    SetWindowText(this->m_pWindowHandle, this->m_szWindowName);
+    // This sets the title of the window.
+    SetWindowText(m_hWindowHandle, m_szWindowName);
 
-    SetWindowLongPtrA(this->m_pWindowHandle, GWL_STYLE, (
+    // Finally define what we want the style of the window to be by setting a variable using a window wrapper.
+    SetWindowLongPtrA(m_hWindowHandle, GWL_STYLE, (
         WS_OVERLAPPEDWINDOW                         // Normal window 
         ^ WS_MAXIMIZEBOX)                           // No maximize box
         ^ WS_SIZEBOX);                              // Disable resizing.
 
-    SetClassLong(this->m_pWindowHandle, GCLP_HICON, (LONG)LoadIconW(hInstance, MAKEINTRESOURCE(IDI_ICON1))); // set custom icon
+    // Sets the window icon. Doesn't seem to work as intended currently?
+    SetClassLong(m_hWindowHandle, GCLP_HICON, (LONG)LoadIconW(hInstance, MAKEINTRESOURCE(IDI_ICON1))); // set custom icon
 
-    if (!CreateDeviceD3D(this->m_pWindowHandle))
+    // Since the window has been setup successfully, we can create and linke a new DirectX instance to it for accelerated graphics rendering.
+    if (!CreateDeviceD3D())
     {
-        MessageBoxA(0, "FATAL! Failed to initialise DirectX", "FATAL ERROR", 0);
+        // On the case that DX failed to load, show an error. This can happen if
+        // the user hasn't installed DX properly or there is an error with the DX
+        // drivers. This doesn't happen often.
+        MessageBoxA(0, Localisation.Error.DXInit, Localisation.Error.Fatal, 0);
+        
         CleanupDeviceD3D();
         UnregisterClass(wc.lpszClassName, wc.hInstance);
+        
         exit(-1);
+        return;
     }
 
-
-    ShowWindow(this->m_pWindowHandle, SW_SHOWDEFAULT);
-    UpdateWindow(this->m_pWindowHandle);
-
-    if (!CreateDeviceD3D(this->m_pWindowHandle))
-    {
-        CleanupDeviceD3D();
-        exit(0);
-    }
+    ShowWindow(m_hWindowHandle, SW_SHOWDEFAULT);
+    UpdateWindow(m_hWindowHandle);
 }
 
-void WindowManager::SetupImGui() {
-    // Sets up a neat looking dark mode for the ImGui instance.
-
+void WindowManager::SetupImGui() 
+{
+    // Create the ImGui static instance.
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    
+    // This next huge block of code just sets all the variables ImGui will use for colouration and general styling.
+    // TODO: Load absolutely everything here from a resource file so it can be modified without recompiling the 
+    // application.
+    ImGuiIO& io = ImGui::GetIO();
     ImGuiStyle* style = &ImGui::GetStyle();
 
-    ImGui::StyleColorsDark();
     style->WindowPadding        = ImVec2(5, 5);
     style->WindowRounding       = 0.0f;
     style->FramePadding         = ImVec2(5, 5);
@@ -296,57 +244,79 @@ void WindowManager::SetupImGui() {
     style->GrabMinSize          = 1.0f;
     style->GrabRounding         = 0.0f;
 
-    auto C = ImVec4(25.f / 255.f, 25.f / 255.f, 25.f / 255.f, 255.f);
-    auto C2 = ImVec4(40.f / 255.f, 40.f / 255.f, 40.f / 255.f, 255.f);
-
-    style->Colors[ImGuiCol_Border]          = C;
-    style->Colors[ImGuiCol_BorderShadow]    = C;
-    style->Colors[ImGuiCol_WindowBg]        = C;
-    style->Colors[ImGuiCol_FrameBgActive]   = C;
-    style->Colors[ImGuiCol_FrameBgHovered]  = C;
-    style->Colors[ImGuiCol_FrameBg]         = C;
-
-    this->m_pFontConsolas   = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\consola.ttf", 13.f);
-    this->m_pFontVerdana    = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\verdana.ttf", 13.f);
+    style->Colors[ImGuiCol_Border]          = Colours.FullDark;
+    style->Colors[ImGuiCol_BorderShadow]    = Colours.FullDark;
+    style->Colors[ImGuiCol_WindowBg]        = Colours.FullDark;
+    style->Colors[ImGuiCol_FrameBgActive]   = Colours.Lighter;
+    style->Colors[ImGuiCol_FrameBgHovered]  = Colours.Lighter;
+    style->Colors[ImGuiCol_FrameBg]         = Colours.Dark;
+    
+    style->Colors[ImGuiCol_Button]          = Colours.Buttons.Default;
+    style->Colors[ImGuiCol_ButtonHovered]   = Colours.Buttons.Hovered;
+    style->Colors[ImGuiCol_ButtonActive]    = Colours.Buttons.Active;
 
     // Setup Platform/Renderer bindings
-    ImGui_ImplWin32_Init(this->m_pWindowHandle);
-    ImGui_ImplDX10_Init(this->m_pD3DDevice);
+    ImGui_ImplWin32_Init(m_hWindowHandle);
+    ImGui_ImplDX10_Init(m_pD3DDevice);
 }
 
-void WindowManager::Cleanup() {
+void WindowManager::Cleanup() 
+{
+    // Allow the thread to finish this cycle and quit.
+    SET_EMULATOR_RUNNING(false);
+    SET_EMULATOR_PAUSED(false);
+    SET_EMULATOR_FULLEXIT(true);
+    
+    Sleep(EMULATOR_DAEMON_EXIT_TIMER);
+
+    // Join it with the main thread so it finishes safely.
+    EMULATOR_DAEMON.join();
+
     ImGui_ImplDX10_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    this->CleanupDeviceD3D();
+    CleanupDeviceD3D();
 
-    DestroyWindow(this->m_pWindowHandle);
+    DestroyWindow(m_hWindowHandle);
 }
 
-bool WindowManager::CreateDeviceD3D(HWND hWnd)
+bool WindowManager::CreateDeviceD3D()
 {
-    // Setup swap chain
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 2;
-    sd.BufferDesc.Width = 0;
-    sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    // Setup the DX swap chain, this defines what window it renders to, how fast, at what depth etc.
+    DXGI_SWAP_CHAIN_DESC SwapChainSettings;
+    ZeroMemory(&SwapChainSettings, sizeof(SwapChainSettings));
+    SwapChainSettings.BufferCount                          = 2;
+    SwapChainSettings.BufferDesc.Width                     = 0;
+    SwapChainSettings.BufferDesc.Height                    = 0;
+    SwapChainSettings.BufferDesc.Format                    = DXGI_FORMAT_R8G8B8A8_UNORM;
+    SwapChainSettings.BufferDesc.RefreshRate.Numerator     = m_iRefreshRate;
+    SwapChainSettings.BufferDesc.RefreshRate.Denominator   = 1;
+    SwapChainSettings.Flags                                = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    SwapChainSettings.BufferUsage                          = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    SwapChainSettings.OutputWindow                         = m_hWindowHandle;
+    SwapChainSettings.SampleDesc.Count                     = 1;
+    SwapChainSettings.SampleDesc.Quality                   = 0;
+    SwapChainSettings.Windowed                             = TRUE;
+    
+    // https://devblogs.microsoft.com/directx/dxgi-flip-model/
+    SwapChainSettings.SwapEffect                           = /*DXGI_SWAP_EFFECT_DISCARD*/ DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-    UINT createDeviceFlags = 0;
-    //createDeviceFlags |= D3D10_CREATE_DEVICE_DEBUG;
-    if (D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, D3D10_SDK_VERSION, &sd, &this->m_pSwapChain, &this->m_pD3DDevice) != S_OK)
+    UINT createDeviceFlags = NULL;
+
+#ifdef _DEBUG
+    m_bD3DDebug = true;
+#endif
+
+    if (m_bD3DDebug)
+    {
+        createDeviceFlags |= D3D10_CREATE_DEVICE_DEBUG;
+    }
+
+    if (D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, D3D10_SDK_VERSION, &SwapChainSettings, &m_pSwapChain, &m_pD3DDevice) != S_OK)
+    {
         return false;
+    }
 
     CreateRenderTarget();
     return true;
@@ -354,27 +324,40 @@ bool WindowManager::CreateDeviceD3D(HWND hWnd)
 
 void WindowManager::CleanupDeviceD3D()
 {
-    this->CleanupRenderTarget();
-    if (this->m_pSwapChain) { this->m_pSwapChain->Release(); this->m_pSwapChain = NULL; }
-    if (this->m_pD3DDevice) { this->m_pD3DDevice->Release(); this->m_pD3DDevice = NULL; }
+    CleanupRenderTarget();
+    if (m_pSwapChain) { m_pSwapChain->Release(); m_pSwapChain = NULL; }
+    if (m_pD3DDevice) { m_pD3DDevice->Release(); m_pD3DDevice = NULL; }
 }
 
 void WindowManager::CreateRenderTarget()
 {
     ID3D10Texture2D* pBackBuffer;
-    this->m_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-    this->m_pD3DDevice->CreateRenderTargetView(pBackBuffer, NULL, &this->m_pMainRenderTargetView);
+    m_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
+
+    if (!pBackBuffer)
+    {
+        throw std::runtime_error{ Localisation.Error.Fatal };
+        return;
+    }
+
+    m_pD3DDevice->CreateRenderTargetView(pBackBuffer, NULL, &m_pMainRenderTargetView);
     pBackBuffer->Release();
 }
 
 void WindowManager::CleanupRenderTarget()
 {
-    if (this->m_pMainRenderTargetView) { this->m_pMainRenderTargetView->Release(); this->m_pMainRenderTargetView = NULL; }
+    if (m_pMainRenderTargetView) 
+    { 
+        m_pMainRenderTargetView->Release(); 
+        m_pMainRenderTargetView = NULL; 
+    }
 }
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 // Win32 message handler
+// This code was taken from imgui_impl_win32 and modified for my own purposes.
 LRESULT WINAPI WindowManager::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
@@ -395,6 +378,11 @@ LRESULT WINAPI WindowManager::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
             return 0;
         break;
     case WM_DESTROY:
+        // When the user closes the application, make sure the emulator thread can exit.
+        // If we don't do this then the program can be executing in the background, using resources it
+        // definitely should not be.
+        SET_EMULATOR_RUNNING(false);
+        SET_EMULATOR_PAUSED(false);
         ::PostQuitMessage(0);
         return 0;
     }

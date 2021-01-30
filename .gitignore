@@ -19,3 +19,7 @@
 *.txt
 *.filters
 GUI Redist.zip
+*.iobj
+*.ipdb
+*.xbf
+*.png

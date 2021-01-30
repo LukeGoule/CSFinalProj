@@ -59,6 +59,28 @@ REGISTER_VAL_SIZE* EmulatedRegisters::GetRegisterByNumber(unsigned long long n)
 
 }
 
+void EmulatedRegisters::CompleteReset()
+{
+    *R0() = 0;
+    *R1() = 0;
+    *R2() = 0;
+    *R3() = 0;
+    *R4() = 0;
+    *R5() = 0;
+    *R6() = 0;
+    *R7() = 0;
+    *R8() = 0;
+    *R9() = 0;
+    *R10() = 0;
+    *R11() = 0;
+
+    _IP = 0;
+    _F_EQ = 0;
+    _F_NE = 0;
+    _F_GT = 0;
+    _F_LT = 0;
+}
+
 void Emulation::Reset()
 {
     // Unsafe(??) memory manual memory allocation.

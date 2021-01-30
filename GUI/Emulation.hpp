@@ -94,6 +94,8 @@ public:
     
     // Less than
     REGISTER_VAL_SIZE _F_LT     = REGISTER_DEFAULT_VALUE;
+
+    void CompleteReset();
 };
 
 class Emulation
