@@ -1,5 +1,6 @@
-# Simple_AQA_ASM_Executor
+# CS Final Project
 AQA Assembly language program executor, written in C++ for my final A Level Project.
+There are multiple types included here.
 
 ## How to execute
 Write your program with any kind of text editor, then drag and drop the program onto the output program.
