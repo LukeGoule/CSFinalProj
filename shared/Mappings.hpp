@@ -87,7 +87,7 @@
 // Outputs all register's values
 #define INSTR_DUMP    INSTR_LDR + 19
 
-extern std::unordered_map<std::string, unsigned long long> FullInstructionMapping;
-extern std::unordered_map<unsigned long long, std::string> FullInstructionMapping_INVERSE;
+extern std::unordered_map<std::string, unsigned long long> new_FullInstructionMapping;
+extern std::unordered_map<unsigned long long, std::string> new_FullInstructionMapping_INVERSE;
 
 #endif

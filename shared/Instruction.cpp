@@ -43,9 +43,9 @@ void AQAInstruction::Dump()
 
 std::string AQAInstruction::Disassemble(unsigned long long iIndex)
 {
-	auto Find = FullInstructionMapping_INVERSE.find(m_uOpcode);
+	auto Find = new_FullInstructionMapping_INVERSE.find(m_uOpcode);
 	
-	if (Find == FullInstructionMapping_INVERSE.end())
+	if (Find == new_FullInstructionMapping_INVERSE.end())
 	{
 		throw std::runtime_error{ "Opcode [" + std::to_string(m_uOpcode) + "] could not be found" };
 		return {};

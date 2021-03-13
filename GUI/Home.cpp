@@ -6,14 +6,19 @@
 #include "Localisation.hpp"
 #include "Colours.hpp"
 
-TabHome::TabHome()
-	: MenuTab("Home", TABID_HOME)
+#pragma warning(disable: 4244)
+#pragma warning(disable: 4309)
+#pragma warning(disable: 4305)
+
+
+TabEmulator::TabEmulator()
+	: MenuTab("Emulator", TABID_EMULATOR)
 {}
 
-TabHome::~TabHome()
+TabEmulator::~TabEmulator()
 {}
 
-void TabHome::Draw()
+void TabEmulator::Draw()
 {
 	if (!m_bActive) return;
     if (!WIN) return;
@@ -101,7 +106,7 @@ void TabHome::Draw()
     ImGui::TextColored(Colours.Text.VeryLight, Localisation.Copyright);
 }
 
-void TabHome::LoadComponent()
+void TabEmulator::LoadComponent()
 {
     OutputDebugStringA("Loaded home component");
 }

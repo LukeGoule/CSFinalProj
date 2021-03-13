@@ -6,7 +6,7 @@
 
 #include "Emulation.hpp"
 #include "Instructions.hpp"
-#include "Mappings.hpp"
+#include "../shared/Mappings.hpp"
 #include "DefaultProgram.hpp"
 #include "EmulationManager.hpp"
 
@@ -20,6 +20,8 @@
 #include <stdexcept>
 #include <thread>
 #include <chrono>
+
+#pragma warning(disable: 4311 4302)
 
 void WindowManager::Main() 
 {
@@ -37,7 +39,7 @@ void WindowManager::Main()
     // This is a lambda function, though, which isn't good practice. Works though.
     // The new HALT instruction will stop the emulator thread from doing anything until the user
     // clicks "Run" again.
-    InstructionBindings[HALT] = [](INSTRUCTION_INPUTS) 
+    InstructionBindings[INSTR_HALT] = [](INSTRUCTION_INPUTS) 
     {
         SET_EMULATOR_RUNNING(false);
         SET_EMULATOR_ERROR(Localisation.HaltProcessor);
@@ -123,7 +125,7 @@ void WindowManager::DrawImGui()
 {
     // The ImGui window must be drawn at -1,-1 otherwise the user can see the surrounding border because of ImGui's way of rendering.
     ImGui::SetNextWindowPos(ImVec2(-1, -1));
-    ImGui::SetNextWindowSize(ImVec2(m_iWindowSizeX, m_iWindowSizeY));
+    ImGui::SetNextWindowSize(ImVec2((float)m_iWindowSizeX, (float)m_iWindowSizeY));
 
     ImGui::Begin("##MainRenderImGui", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
     {
@@ -133,8 +135,8 @@ void WindowManager::DrawImGui()
 
     // Compile-time determination as to whether to include this code. There is no need for it if we aren't compiling in debug mode.
 #if _DEBUG
-    ImGui::SetNextWindowPos(ImVec2(m_iWindowSizeX+1, 0));
-    ImGui::SetNextWindowSize(ImVec2(m_iDebugExtraWidth - 7, m_iWindowSizeY));
+    ImGui::SetNextWindowPos(ImVec2((float)m_iWindowSizeX + 1.f, 0.f));
+    ImGui::SetNextWindowSize(ImVec2((float)m_iDebugExtraWidth - 7.f, (float)m_iWindowSizeY));
     ImGui::Begin("##DebugScreen", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
     ImGui::PushFont(m_pFontConsolas);
     {

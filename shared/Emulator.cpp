@@ -15,7 +15,7 @@ AQAEmulator::AQAEmulator(std::size_t nMemoryBytes)
 		throw std::runtime_error{ "Failed to allocate memory bytes" };
 	}
 
-	m_pRegisters = new EmulatedRegisters();
+	m_pRegisters = new AQARegisters();
 }
 
 AQAEmulator::~AQAEmulator()

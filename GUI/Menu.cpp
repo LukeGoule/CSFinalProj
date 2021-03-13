@@ -7,12 +7,13 @@
 
 Menu::Menu()
 	: MenuComponent(0L, nullptr, {
-		new TabHome(), 
+		new TabEmulator(),
+		new TabAssembler(),
 		new TabGuide(), 
 		new TabAbout()
 	})
 {
-	m_iCurrentTab = TABID_HOME;
+	m_iCurrentTab = TABID_EMULATOR;
 	m_iEndTabID = TABID_ABOUT;
 }
 

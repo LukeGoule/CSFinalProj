@@ -1,7 +1,7 @@
 #include "Output.hpp"
 #include "Instruction.hpp"
 #include "Mappings.hpp"
-#include "Utils.hpp"
+#include "Utils2.hpp"
 #include "RunLengthEncoding.hpp"
 
 #include <fstream>
@@ -90,9 +90,9 @@ AQAInstruction* AssembledOutput::AssembleLine(std::string Line, unsigned long iL
 
 	std::transform(Tokenised[0].begin(), Tokenised[0].end(), Tokenised[0].begin(), std::toupper);
 
-	auto Found = FullInstructionMapping.find(Tokenised[0]);
+	auto Found = new_FullInstructionMapping.find(Tokenised[0]);
 
-	if (Found == FullInstructionMapping.end())
+	if (Found == new_FullInstructionMapping.end())
 	{
 
 		throw std::runtime_error{ "[Line " + std::to_string(iLineNumber) + "] Instruction " + Tokenised[0] + " not found" };

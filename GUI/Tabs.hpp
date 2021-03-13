@@ -5,17 +5,29 @@
 
 #include "MenuTab.hpp"
 
-#define TABID_HOME  0
-#define TABID_GUIDE 1
-#define TABID_ABOUT 2
+#define TABID_EMULATOR  0
+#define TABID_ASSEMBLER 1
+#define TABID_GUIDE 2
+#define TABID_ABOUT 3
 
-class TabHome 
+class TabEmulator 
 	: public MenuTab
 {
 public:
-	TabHome();
-	~TabHome();
+	TabEmulator();
+	~TabEmulator();
 	
+	void LoadComponent();
+	void Draw();
+};
+
+class TabAssembler
+	: public MenuTab
+{
+public:
+	TabAssembler();
+	~TabAssembler();
+
 	void LoadComponent();
 	void Draw();
 };

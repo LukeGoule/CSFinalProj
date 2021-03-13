@@ -1,6 +1,6 @@
 #include "Emulation.hpp"
 #include "Utils.hpp"
-#include "Mappings.hpp"
+#include "../shared/Mappings.hpp"
 #include "Instructions.hpp"
 
 #include <iostream>
@@ -8,7 +8,9 @@
 #include <algorithm>
 #include <thread>
 
-#pragma warning(disable: 26495) // Uninitialised class members.
+#pragma warning(disable: 26495)     // Uninitialised class members.
+#pragma warning(disable: 6385)      // InstructionBindings apparently out of range?
+#pragma warning(disable: 26495)
 
 Emulation::Emulation()
 {
@@ -253,6 +255,11 @@ bool Emulation::RunFile(std::string FileData, bool* bContinueCondition, int* piS
             CurrentInstruction += x + " ";
         }
         CurrentInstruction = CurrentInstruction.substr(0, CurrentInstruction.size() - 1);
+
+        if (uMappedInstruction > 20)
+        {
+            throw std::runtime_error{ "Invalid instruction detected" };
+        }
 
         BoundInstruction_t pCallableBoundFunction = InstructionBindings[uMappedInstruction];
 

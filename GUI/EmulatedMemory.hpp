@@ -26,9 +26,7 @@ public:
     }
 
     inline ~EmulatedMemory()
-    {
-
-    }
+    {}
 
     inline void ResetMemory()
     {

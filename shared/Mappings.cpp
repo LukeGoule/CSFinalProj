@@ -1,6 +1,6 @@
 #include "Mappings.hpp"
 
-std::unordered_map<std::string, unsigned long long> FullInstructionMapping = {
+std::unordered_map<std::string, unsigned long long> new_FullInstructionMapping = {
     {"LDR",     INSTR_LDR},
     {"STR",     INSTR_STR},
     {"ADD",     INSTR_ADD},
@@ -23,7 +23,7 @@ std::unordered_map<std::string, unsigned long long> FullInstructionMapping = {
     {"DUMP",    INSTR_DUMP}
 };
 
-std::unordered_map<unsigned long long, std::string> FullInstructionMapping_INVERSE = {
+std::unordered_map<unsigned long long, std::string> new_FullInstructionMapping_INVERSE = {
     {INSTR_LDR,     "LDR"},
     {INSTR_STR,     "STR"},
     {INSTR_ADD,     "ADD"},

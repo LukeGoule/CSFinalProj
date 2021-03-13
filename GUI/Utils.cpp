@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include "Mappings.hpp"
+#include "../shared/Mappings.hpp"
 
 #include <stdexcept>
 #include <algorithm>
@@ -195,8 +195,8 @@ bool Utils::ExistsWithinArray(std::vector<std::string> InputArray, std::string S
 
 unsigned long Utils::InstructionMnemonicToID(std::string Mnemonic)
 {
-    auto FoundInstruction = FullInstructionMapping.find(Mnemonic);
-    if (FoundInstruction == FullInstructionMapping.end())
+    auto FoundInstruction = new_FullInstructionMapping.find(Mnemonic);
+    if (FoundInstruction == new_FullInstructionMapping.end())
     {
         throw std::runtime_error{ "Failed to locate instruction \"" + Mnemonic + "\"" };
     }

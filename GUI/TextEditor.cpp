@@ -316,7 +316,7 @@ void TextEditor::AddUndo(UndoRecord& aValue)
 	//	aValue.mAfter.mCursorPosition.mLine, aValue.mAfter.mCursorPosition.mColumn
 	//	);
 
-	mUndoBuffer.resize((size_t)(mUndoIndex + 1));
+	mUndoBuffer.resize((std::size_t)((std::size_t)mUndoIndex + 1ULL));
 	mUndoBuffer.back() = aValue;
 	++mUndoIndex;
 }
@@ -399,7 +399,7 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 				cindex++;
 				break;
 			}
-			if (cstart != (PaletteIndex)line[size_t(cindex - 1)].mColorIndex)
+			if (cstart != (PaletteIndex)line[size_t(cindex - 1ULL)].mColorIndex)
 				break;
 		}
 		--cindex;
@@ -567,16 +567,16 @@ bool TextEditor::IsOnWordBoundary(const Coordinates& aAt) const
 		return true;
 
 	if (mColorizerEnabled)
-		return line[cindex].mColorIndex != line[size_t(cindex - 1)].mColorIndex;
+		return line[cindex].mColorIndex != line[size_t(cindex - 1ULL)].mColorIndex;
 
-	return isspace(line[cindex].mChar) != isspace(line[cindex - 1].mChar);
+	return isspace(line[cindex].mChar) != isspace(line[cindex - 1ULL].mChar);
 }
 
 void TextEditor::RemoveLine(int aStart, int aEnd)
 {
 	assert(!mReadOnly);
 	assert(aEnd >= aStart);
-	assert(mLines.size() > (size_t)(aEnd - aStart));
+	assert(mLines.size() > (size_t)((size_t)aEnd - (size_t)aStart));
 
 	ErrorMarkers etmp;
 	for (auto& i : mErrorMarkers)
@@ -1326,7 +1326,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 	{
 		InsertLine(coord.mLine + 1);
 		auto& line = mLines[coord.mLine];
-		auto& newLine = mLines[coord.mLine + 1];
+		auto& newLine = mLines[(unsigned long long)coord.mLine + 1ULL];
 
 		if (mLanguageDefinition.mAutoIndentation)
 			for (size_t it = 0; it < line.size() && isascii(line[it].mChar) && isblank(line[it].mChar); ++it)
@@ -1788,7 +1788,7 @@ void TextEditor::Delete()
 			u.mRemovedStart = u.mRemovedEnd = GetActualCursorCoordinates();
 			Advance(u.mRemovedEnd);
 
-			auto& nextLine = mLines[pos.mLine + 1];
+			auto& nextLine = mLines[pos.mLine + 1ULL];
 			line.insert(line.end(), nextLine.begin(), nextLine.end());
 			RemoveLine(pos.mLine + 1);
 		}
@@ -1846,8 +1846,8 @@ void TextEditor::Backspace()
 			Advance(u.mRemovedEnd);
 
 			auto& line = mLines[mState.mCursorPosition.mLine];
-			auto& prevLine = mLines[mState.mCursorPosition.mLine - 1];
-			auto prevSize = GetLineMaxColumn(mState.mCursorPosition.mLine - 1);
+			auto& prevLine = mLines[mState.mCursorPosition.mLine - 1ULL];
+			auto prevSize = GetLineMaxColumn(mState.mCursorPosition.mLine - 1ULL);
 			prevLine.insert(prevLine.end(), line.begin(), line.end());
 
 			ErrorMarkers etmp;
@@ -2296,7 +2296,7 @@ void TextEditor::ColorizeInternal()
 
 					if (c == '\"')
 					{
-						if (currentIndex + 1 < (int)line.size() && line[currentIndex + 1].mChar == '\"')
+						if (currentIndex + 1 < (int)line.size() && line[currentIndex + 1ULL].mChar == '\"')
 						{
 							currentIndex += 1;
 							if (currentIndex < (int)line.size())
@@ -3167,13 +3167,13 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::AQA_ASM()
 	{
 		for (auto& k : { "ldr","str","add","sub","mov","cmp","b","beq","bne","bgt","blt","and","orr","eor","mvn","lsl","lsr","halt","out","dump" })
 		{
-			langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\ |\t]*" + std::string(k) + "[\ |\t]*", PaletteIndex::Identifier)); // Label
+			langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\\ |\t]*" + std::string(k) + "[\\ |\t]*", PaletteIndex::Identifier)); // Label
 
 			auto s = std::string(k);
 			std::transform(s.begin(), s.end(), s.begin(),
 				[](unsigned char c) { return std::toupper(c); });
 
-			langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\ |\t]*" + std::string(s) + "[\ |\t]*", PaletteIndex::Identifier)); // Label
+			langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\\ |\t]*" + std::string(s) + "[\\ |\t]*", PaletteIndex::Identifier)); // Label
 		}
 
 		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[a-zA-Z0-9_]*:", PaletteIndex::String)); // Label

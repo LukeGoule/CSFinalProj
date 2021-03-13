@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "EmulatedRegisters.hpp"
+#include "AQARegisters.hpp"
 
 class AssembledOutput;
 class AQAInstruction;
@@ -22,7 +22,7 @@ class AQAEmulator
 	unsigned long long m_uCycles;
 	unsigned long long m_uDelayMS = 10ULL;
 
-	EmulatedRegisters* m_pRegisters;
+	AQARegisters* m_pRegisters;
 
 public:
 
