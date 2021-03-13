@@ -37,21 +37,13 @@ void MenuComponent::DrawNext()
 
 	for (auto pChild : this->m_vecChildren)
 	{
-		/* 
-		checked on tree construction, not neede here.
-	
-		if (pChild == this->m_pParent)
-		{
-			//err
-		}
-		*/
-
 		if (!pChild)
 		{
 			MessageBoxA(0, "pChild was NULL!", "FATAL ERROR", MB_ICONERROR);
 			abort();
 			return;
 		}
+		
 
 		pChild->DrawNext();
 	}

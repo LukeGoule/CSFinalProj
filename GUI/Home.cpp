@@ -108,5 +108,5 @@ void TabEmulator::Draw()
 
 void TabEmulator::LoadComponent()
 {
-    OutputDebugStringA("Loaded home component");
+    OutputDebugStringA("Loaded home component\n");
 }

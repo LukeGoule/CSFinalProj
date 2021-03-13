@@ -38,15 +38,21 @@ void Menu::DrawTabs()
 	ImGui::PushStyleColor(ImGuiCol_Button, Colours.FullDark);
 	for (auto pChild : m_vecChildren)
 	{
+		// Cast the item in the vector properly to it's superclass.
+		// If an item in this vector is NOT a child of MenuTab then
+		// we have a serious OOP issue.
 		MenuTab* pTab = reinterpret_cast<MenuTab*>(pChild);
 
+		// Check if it is a null pointer.
 		if (!pTab) continue;
 
+		// When it's clicked, set the current tab to it.
 		if (ImGui::Button(pTab->m_Name.c_str()))
 		{
 			this->m_iCurrentTab = pTab->m_iID;
 		}
 
+		// Prevent the last item from causing styling issues.
 		if (pTab->m_iID != m_iEndTabID)
 		{
 			ImGui::SameLine();

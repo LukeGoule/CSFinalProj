@@ -7,8 +7,13 @@
 
 namespace AssemblyManager
 {
-	extern std::string Code;
-	
+	extern std::string Code, AssembleStatus;
+	extern bool bExecuting, bPaused, bAssembling;
+
+	void AssembleCode();
+
+	void ExecThread();
+
 	void Reset();
 }
 

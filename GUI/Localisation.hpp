@@ -18,6 +18,7 @@ struct Localisation_t
 	char* Play = c"Play";
 	char* Pause = c"Pause";
 	char* Reset = c"Reset";
+	char* Assemble = c"Assemble";
 	char* LastError = c"Last Error: %s";
 	char* Delay = c"Delay";
 	char* Eval = c"Eval: %s";

@@ -2,14 +2,19 @@
 #include "Menu.hpp"
 #include "WindowManager.hpp"
 #include "ImGui_CustomExtensions.hpp"
-#include "EmulationManager.hpp"
+#include "AssemblyManager.hpp"
 #include "Localisation.hpp"
 #include "Colours.hpp"
+
+#include "../shared/Emulator.hpp"
+
+/*
+This page should be identical to the Home.cpp page but uses the assembler system instead of the "inline" parsing. 
+*/
 
 #pragma warning(disable: 4244)
 #pragma warning(disable: 4309)
 #pragma warning(disable: 4305)
-
 
 TabAssembler::TabAssembler()
     : MenuTab("Assembler", TABID_ASSEMBLER)
@@ -17,6 +22,8 @@ TabAssembler::TabAssembler()
 
 TabAssembler::~TabAssembler()
 {}
+
+bool bExecuting = false, bPaused = false;
 
 void TabAssembler::Draw()
 {
@@ -31,25 +38,32 @@ void TabAssembler::Draw()
 
     ImGui::Spacing();
 
-    constexpr float fButtonWidth = 50.f;
+    constexpr float fButtonWidth = 75.f;
 
     ImGui::PushFont(WIN->m_pFontVerdana);
     {
-        //ImGui::Custom::ToggleButton(&GET_EMULATOR_RUNNING, Localisation.Stop, Localisation.Run, ImVec2(fButtonWidth, 0.f));
+        ImGui::Custom::ToggleButton(&bExecuting, Localisation.Stop, Localisation.Run, ImVec2(fButtonWidth, 0.f));
 
         ImGui::SameLine();
-        //ImGui::Custom::ToggleButton(&GET_EMULATOR_PAUSED, Localisation.Play, Localisation.Pause, ImVec2(fButtonWidth, 0.f));
+        ImGui::Custom::ToggleButton(&bPaused, Localisation.Play, Localisation.Pause, ImVec2(fButtonWidth, 0.f));
 
         ImGui::SameLine();
 
-        /*if (ImGui::Button(Localisation.Reset, ImVec2(fButtonWidth, 0.f)))
+        if (ImGui::Button(Localisation.Assemble, ImVec2(fButtonWidth, 0.f)))
         {
-            EmulationManager::NewState();
-        }*/
+            AssemblyManager::AssembleCode();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button(Localisation.Reset, ImVec2(fButtonWidth, 0.f)))
+        {
+            AssemblyManager::Reset();
+        }
     }
     ImGui::PopFont();
 
-    ImGui::SameLine();
+    /*ImGui::SameLine();
     ImGui::PushItemWidth(380);
     ImGui::LabelText("", Localisation.LastError, GET_EMULATOR_ERROR.c_str());
     ImGui::SameLine();
@@ -101,12 +115,12 @@ void TabAssembler::Draw()
 
         ImGui::TextColored(Colours.Text.Normal, Localisation.Eval, EMULATOR->CurrentInstruction.c_str());
     }
-    ImGui::EndChildFrame();
+    ImGui::EndChildFrame();*/
 
     ImGui::TextColored(Colours.Text.VeryLight, Localisation.Copyright);
 }
 
 void TabAssembler::LoadComponent()
 {
-    OutputDebugStringA("Loaded assembler component");
+    OutputDebugStringA("Loaded assembler component\n");
 }
