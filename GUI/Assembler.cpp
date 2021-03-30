@@ -17,6 +17,7 @@ This page should be identical to the Home.cpp page but uses the assembler system
 #pragma warning(disable: 4305)
 
 TabAssembler::TabAssembler()
+    // TODO: Localisation!
     : MenuTab("Assembler", TABID_ASSEMBLER)
 {}
 

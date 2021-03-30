@@ -49,6 +49,11 @@ void MenuComponent::DrawNext()
 	}
 }
 
+long long MenuComponent::GetID()
+{
+	return this->m_iID;
+}
+
 void MenuComponent::LoadComponent()
 {
 	// Nothing to be done.

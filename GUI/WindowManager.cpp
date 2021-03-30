@@ -25,6 +25,7 @@
 
 void WindowManager::Main() 
 {
+#pragma region WINDOWMANAGER_MAIN_DO_ONCE
     TextEditor::LanguageDefinition EditorLanguage = TextEditor::LanguageDefinition::AQA_ASM();
     
     EmulationManager::NewState();
@@ -50,22 +51,30 @@ void WindowManager::Main()
     // Start the emulator's own thread.
     EmulationManager::Launch();
 
-    //
     Fonts::Load();
 
-    //
+    // Initialise the static menu tree & load all of the resources for the tree's items.
     MenuSystem::SetInstance(this);
     MenuSystem::ConstructMenuTree();
     MenuSystem::LoadComponents(); // resource loading etc.
 
     MSG pWndProcMsg;
     ZeroMemory(&pWndProcMsg, sizeof(pWndProcMsg));
+
+#pragma endregion
     
+
+#pragma region WINDOWMANAGER_MAIN_LOOP
     // This loop should run 60 times a second, or more if the user's monitor supports it (or less even).
     // It will only quit when the application receives the WM_QUIT message from Windows or m_bForceQuit is set
     // to true. Any other way of quitting could be unsafe if file operations are happening.
+    // SHOULD being the key word. There is a chance it is rendering much more than it needs to be because of the 
+    // window message handling.
+
     while (pWndProcMsg.message != WM_QUIT && !m_bForceQuit)
     {
+        // Windows related stuff for handling events relating to the actual window.
+        // This will handle anything like painting, resizing, minimising&maximising etc etc.
         if (PeekMessage(&pWndProcMsg, NULL, 0U, 0U, PM_REMOVE))
         {
             TranslateMessage(&pWndProcMsg);
@@ -91,25 +100,27 @@ void WindowManager::Main()
         if (GET_EMULATOR_RUNNING) 
         {
             // Set a red "error marker" on the current / last executed line.
-            TextEditor::ErrorMarkers x;
-            x.insert(std::make_pair<int, std::string>((int)REGISTERS->_IP, _c Localisation.CurrentExecLine));
-            m_Editor.SetErrorMarkers(x);
+            // A future change may be to recode the error system in ImGuiTextEdit to be a new class which defines something like "CurrentLine"
+            // that doesn't have an inner message saying "error" constantly.
+            TextEditor::ErrorMarkers ClearedErrorMarkers;
+            ClearedErrorMarkers.insert(std::make_pair<int, std::string>((int)REGISTERS->_IP, _c Localisation.CurrentExecLine));
+            m_Editor.SetErrorMarkers(ClearedErrorMarkers);
         }
         else
         {
             // Empty list of "error markers" so no red things linger on the screen.
-            TextEditor::ErrorMarkers x;
-            m_Editor.SetErrorMarkers(x);
+            TextEditor::ErrorMarkers ClearedErrorMarkers;
+            m_Editor.SetErrorMarkers(ClearedErrorMarkers);
         }
 
         // Clear the DirectX framebuffer to purple.
         // If the user can see this then something has gone wrong during the initialisation process.
         static float clear_color[4] = { 1.f, 0.f, 1.f, 1.f };
 
-        // Render all the ImGui stuff.
+        // Render the ImGui draw lists etc, the window.
         ImGui::Render();
 
-        // Clear the previous FB on DX.
+        // Clear the previous framebuffer. This isn't strictly necessary since everything is drawn over the previous frame but is good practice.
         m_pD3DDevice->OMSetRenderTargets(1, &m_pMainRenderTargetView, NULL);
         m_pD3DDevice->ClearRenderTargetView(m_pMainRenderTargetView, (float*)clear_color);
     
@@ -119,6 +130,7 @@ void WindowManager::Main()
         // Must be the last draw-related call. Also determines if VSync is enabled.
         m_pSwapChain->Present((UINT)m_bVsync, 0);
     }
+#pragma endregion
 }
 
 void WindowManager::DrawImGui()
@@ -127,6 +139,8 @@ void WindowManager::DrawImGui()
     ImGui::SetNextWindowPos(ImVec2(-1, -1));
     ImGui::SetNextWindowSize(ImVec2((float)m_iWindowSizeX, (float)m_iWindowSizeY));
 
+    // This is where the actual inner window drawing happens. The `##` in front of the name means it is purely a tag. It will not render an actual window title.
+    // The flags `NoResize` and `NoTitleBar` do as you may expect. This is done because we want the user to only see the inner content of the ImGui "window".
     ImGui::Begin("##MainRenderImGui", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
     {
         MenuSystem::DrawTree();
@@ -176,19 +190,20 @@ void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHei
     int iInitialiseWidthX = m_iWindowSizeX,
         iInitialiseWidthY = m_iWindowSizeY;
 
-#if _DEBUG // Add some width to the window if we're compiling to debug.
+#if _DEBUG // Add some width to the window if compiling a debug build.
     iInitialiseWidthX += m_iDebugExtraWidth + 10;
 #endif
 
     // Get ourselves a handle of our window. Give Windows kernel everything it needs to generate a new window instance that we can modify.
-    // No proper layered window styling is set here, as can be seen  VVVV <- here.
+    // No proper layered window styling is set here, as can be seen VhereV
     m_hWindowHandle = CreateWindow(wc.lpszClassName, m_szWindowName, NULL, 100, 100, iInitialiseWidthX, iInitialiseWidthY, NULL, NULL, wc.hInstance, NULL);
 
     // In the case that Windows decided to not give us a Window for once, or we gave it bad data, show an error to the user.
     if (!m_hWindowHandle)
     {
+        // Show the error message to the user.
         MessageBoxA(0, Localisation.Error.WindowInit, Localisation.Error.Fatal, MB_ICONERROR);
-        abort(); // probably unsafe.
+        abort(); // This is not a safe way to exit the application. Fix me.
         return;
     }
 
@@ -201,15 +216,16 @@ void WindowManager::Setup(const wchar_t* szWindowClassName, int iWidth, int iHei
         ^ WS_MAXIMIZEBOX)                           // No maximize box
         ^ WS_SIZEBOX);                              // Disable resizing.
 
-    // Sets the window icon. Doesn't seem to work as intended currently?
-    SetClassLong(m_hWindowHandle, GCLP_HICON, (LONG)LoadIconW(hInstance, MAKEINTRESOURCE(IDI_ICON1))); // set custom icon
+    // This is meant to set the window icon that shows at the top left corner on Windows, but it fails to function as intended strangely.
+    // What's even stranger to me is that the task bar's icon for this application renders as intended?
+    SetClassLong(m_hWindowHandle, GCLP_HICON, (LONG)LoadIconW(hInstance, MAKEINTRESOURCE(IDI_ICON1)));
 
     // Since the window has been setup successfully, we can create and linke a new DirectX instance to it for accelerated graphics rendering.
     if (!CreateDeviceD3D())
     {
-        // On the case that DX failed to load, show an error. This can happen if
-        // the user hasn't installed DX properly or there is an error with the DX
-        // drivers. This doesn't happen often.
+        // On the case that DirectX failed to load, show an error. This can happen if
+        // the user hasn't installed DirectX properly or there is an error with the DirectX
+        // drivers. This doesn't (seem to) happen often. Requires much more testing on more systems.
         MessageBoxA(0, Localisation.Error.DXInit, Localisation.Error.Fatal, 0);
         
         CleanupDeviceD3D();
@@ -234,12 +250,12 @@ void WindowManager::SetupImGui()
     ImGuiIO& io = ImGui::GetIO();
     ImGuiStyle* style = &ImGui::GetStyle();
 
-    style->WindowPadding        = ImVec2(5, 5);
+    style->WindowPadding        = ImVec2(5.f, 5.f);
     style->WindowRounding       = 0.0f;
-    style->FramePadding         = ImVec2(5, 5);
+    style->FramePadding         = ImVec2(5.f, 5.f);
     style->FrameRounding        = 0.0f;
-    style->ItemSpacing          = ImVec2(5, 5);
-    style->ItemInnerSpacing     = ImVec2(10, 10);
+    style->ItemSpacing          = ImVec2(5.f, 5.f);
+    style->ItemInnerSpacing     = ImVec2(10.f, 10.f);
     style->IndentSpacing        = 25.0f;
     style->ScrollbarSize        = 5.0f;
     style->ScrollbarRounding    = 0.0f;

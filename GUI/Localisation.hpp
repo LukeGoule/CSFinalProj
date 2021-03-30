@@ -1,5 +1,16 @@
 #pragma once
 
+/*
+
+This is a highly simplistic implementation of a "localisation" system to make this application more "multicultural".
+If you wanted to have the menu render in a different language then simply modify this file to your liking.
+I have not tested if UTF-16/Unicode works with this code so that is a change that may be needed. I also do not
+know if ImGui directly supports Unicode.
+
+TODO: Global unicode support!
+
+*/
+
 #ifndef LOCALISATION_HPP
 #define LOCALISATION_HPP
 

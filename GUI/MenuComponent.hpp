@@ -26,9 +26,9 @@ public:
 	std::size_t GetChildrenCount();
 
 	void DrawNext();
+	long long GetID();
 
 	virtual void Draw() = 0;
-
 	virtual void LoadComponent();
 };
 
