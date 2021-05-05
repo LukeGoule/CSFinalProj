@@ -29,7 +29,7 @@ void AQAEmulator::RunProgram(AssembledOutput* pAssembled)
 
 	while (true && 
 		!(m_pRegisters->_F_HALT == 1ULL) &&
-		(m_pRegisters->_IP != nInstructions)) // fuck this im tired. gn
+		(m_pRegisters->_IP != nInstructions))
 	{
 		AQAInstruction Instruction = pAssembled->m_vecInstructions[m_pRegisters->_IP];
 
